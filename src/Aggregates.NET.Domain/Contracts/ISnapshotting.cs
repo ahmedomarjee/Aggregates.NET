@@ -6,10 +6,10 @@ using System.Threading.Tasks;
 
 namespace Aggregates.Contracts
 {
-    public interface ISnapshotting
+    public interface ISnapshotting<TMemento, TId> where TMemento : class, IMemento
     {
-        void RestoreSnapshot(Object snapshot);
-        Object TakeSnapshot();
+        void RestoreSnapshot(ISnapshot<TMemento, TId> snapshot);
+        ISnapshot<TMemento, TId> TakeSnapshot();
         Boolean ShouldTakeSnapshot();
     }
 }

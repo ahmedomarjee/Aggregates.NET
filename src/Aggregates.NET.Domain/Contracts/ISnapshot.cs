@@ -6,11 +6,12 @@ using System.Threading.Tasks;
 
 namespace Aggregates.Contracts
 {
-    public interface ISnapshot
+    public interface ISnapshot<TMemento, TId> where TMemento : class, IMemento
     {
+        TId Id { get; }
 
         Int32 Version { get; }
 
-        Object Payload { get; }
+        TMemento Memento { get; }
     }
 }

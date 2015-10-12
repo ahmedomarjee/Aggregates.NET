@@ -58,6 +58,8 @@
     <Compile Include="Contracts\IEventSource.cs" />
     <Compile Include="Contracts\IEventStream.cs" />
     <Compile Include="Contracts\IHaveEntities.cs" />
+    <Compile Include="Contracts\INeedSnapshots.cs" />
+    <Compile Include="Contracts\IPersistSnapshots.cs" />
     <Compile Include="IMemento.cs" />
     <Compile Include="Contracts\INeedBuilder.cs" />
     <Compile Include="Contracts\INeedEventFactory.cs" />
@@ -85,6 +87,8 @@
     <Compile Include="Internal\DefaultRouteResolver.cs" />
     <Compile Include="Internal\EntityRepository.cs" />
     <Compile Include="Internal\Repository.cs" />
+    <Compile Include="Internal\EntityRepositoryWithMemento.cs" />
+    <Compile Include="Internal\RepositoryWithMemento.cs" />
     <Compile Include="Internal\UnitOfWork.cs" />
     <Compile Include="IUnitOfWork.cs" />
     <Compile Include="Messages\Accept.cs" />

@@ -34,7 +34,6 @@ namespace Aggregates.Internal
         private Int32 _version;
         private IEnumerable<WritableEvent> _committed;
         private IList<WritableEvent> _uncommitted;
-        private IList<WritableEvent> _pendingShots;
         private IList<IEventStream> _children;
 
         public EventStream(IStoreEvents store, String bucket, String streamId, Int32 streamVersion, IEnumerable<WritableEvent> events)
@@ -46,7 +45,6 @@ namespace Aggregates.Internal
             this._version = streamVersion;
             this._committed = events.ToList();
             this._uncommitted = new List<WritableEvent>();
-            this._pendingShots = new List<WritableEvent>();
             this._children = new List<IEventStream>();
 
             if (events == null || events.Count() == 0) return;
@@ -68,21 +66,6 @@ namespace Aggregates.Internal
             });
         }
 
-        public void AddSnapshot(Object snapshot, IDictionary<String, Object> headers)
-        {
-            this._pendingShots.Add(new WritableEvent
-            {
-                Descriptor = new EventDescriptor
-                {
-                    EntityType = typeof(T).FullName,
-                    Timestamp = DateTime.UtcNow,
-                    Version = this._version,
-                    Headers = headers
-                },
-                Event = snapshot,
-                EventId = Guid.NewGuid()
-            });
-        }
 
         public void Commit(Guid commitId, IDictionary<String, Object> commitHeaders)
         {
@@ -99,8 +82,6 @@ namespace Aggregates.Internal
             try
             {
                 _store.WriteEvents(this.Bucket, this.StreamId, this._streamVersion, _uncommitted, commitHeaders);
-
-                _store.WriteSnapshots(this.Bucket, this.StreamId, _pendingShots, commitHeaders);
 
                 ClearChanges();
             }
@@ -132,7 +113,6 @@ namespace Aggregates.Internal
         public void ClearChanges()
         {
             this._uncommitted.Clear();
-            this._pendingShots.Clear();
         }
     }
 }

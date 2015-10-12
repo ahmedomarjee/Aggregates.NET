@@ -26,23 +26,6 @@ namespace Aggregates
             _settings = settings;
         }
 
-        public ISnapshot GetSnapshot<T>(String bucket, String stream) where T : class, IEntity
-        {
-            Logger.DebugFormat("Getting snapshot for stream '{0}' in bucket '{1}'", stream, bucket);
-
-            var streamId = String.Format("{0}.{1}.{2}", bucket, stream, "snapshots");
-
-            var read = _client.ReadEventAsync(streamId, StreamPosition.End, false).WaitForResult();
-            if (read.Status != EventReadStatus.Success || !read.Event.HasValue)
-                return null;
-
-            var @event = read.Event.Value.Event;
-
-            var descriptor = @event.Metadata.Deserialize(_settings);
-            var data = @event.Data.Deserialize(@event.EventType, _settings);
-
-            return new Internal.Snapshot { Version = descriptor.Version, Payload = data };
-        }
 
         public IEventStream GetStream<T>(String bucket, String stream, Int32? start = null) where T : class, IEntity
         {
@@ -77,25 +60,6 @@ namespace Aggregates
             return new Internal.EventStream<T>(this, bucket, stream, current.LastEventNumber, translatedEvents);
         }
 
-        public void WriteSnapshots(String bucket, String stream, IEnumerable<IWritableEvent> snapshots, IDictionary<String, Object> commitHeaders)
-        {
-            Logger.DebugFormat("Writing {0} snapshots to stream id '{1}'", snapshots.Count(), stream);
-            var streamId = String.Format("{0}.{1}.{2}", bucket, stream, "snapshots");
-
-            var translatedEvents = snapshots.Select(e =>
-            {
-                e.Descriptor.Headers.Merge(commitHeaders);
-                return new EventData(
-                    e.EventId,
-                    e.Event.GetType().AssemblyQualifiedName,
-                    true,
-                    e.Event.Serialize(_settings).AsByteArray(),
-                    e.Descriptor.Serialize(_settings).AsByteArray()
-                    );
-            });
-
-            _client.AppendToStreamAsync(streamId, ExpectedVersion.Any, translatedEvents).Wait();
-        }
 
         public void WriteEvents(String bucket, String stream, Int32 expectedVersion, IEnumerable<IWritableEvent> events, IDictionary<String, Object> commitHeaders)
         {

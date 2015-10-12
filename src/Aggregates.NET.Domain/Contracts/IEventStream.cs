@@ -17,8 +17,6 @@ namespace Aggregates.Contracts
 
         void Add(Object @event, IDictionary<String, Object> headers);
 
-        void AddSnapshot(Object snapshot, IDictionary<String, Object> headers);
-
         void Commit(Guid commitId, IDictionary<String, Object> commitHeaders);
 
         void AddChild(IEventStream stream);

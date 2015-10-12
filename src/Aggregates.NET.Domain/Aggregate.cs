@@ -44,21 +44,28 @@ namespace Aggregates
         }
     }
 
-    public abstract class AggregateWithMemento<TId, TMemento> : Aggregate<TId>, ISnapshotting where TMemento : class, IMemento
+    public abstract class AggregateWithMemento<TId, TMemento> : Aggregate<TId>, ISnapshotting<TMemento, TId>, INeedSnapshots where TMemento : class, IMemento
     {
         private IEventStream _eventStream { get { return (this as INeedStream).Stream; } }
+        private IPersistSnapshots _snapshots { get { return (this as INeedSnapshots).Snapshots; } }
+        IPersistSnapshots INeedSnapshots.Snapshots { get; set; }
 
-        void ISnapshotting.RestoreSnapshot(Object snapshot)
+        void ISnapshotting<TMemento, TId>.RestoreSnapshot(ISnapshot<TMemento, TId> snapshot)
         {
             RestoreSnapshot(snapshot as TMemento);
         }
 
-        Object ISnapshotting.TakeSnapshot()
+        ISnapshot<TMemento, TId> ISnapshotting<TMemento, TId>.TakeSnapshot()
         {
-            return TakeSnapshot();
+            return new Internal.Snapshot<TMemento, TId>
+            {
+                Id = this.Id,
+                Version = this.Version,
+                Memento = TakeSnapshot()
+            };
         }
 
-        Boolean ISnapshotting.ShouldTakeSnapshot()
+        Boolean ISnapshotting<TMemento, TId>.ShouldTakeSnapshot()
         {
             return ShouldTakeSnapshot();
         }
@@ -74,7 +81,7 @@ namespace Aggregates
             base.Apply(action);
 
             if (this.ShouldTakeSnapshot())
-                _eventStream.AddSnapshot((this as ISnapshotting).TakeSnapshot(), new Dictionary<string, object> { });
+                _snapshots.Add((this as ISnapshotting<TMemento, TId>).TakeSnapshot());
         }
     }
 }

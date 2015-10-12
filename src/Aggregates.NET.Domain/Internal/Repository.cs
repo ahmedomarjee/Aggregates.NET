@@ -16,10 +16,9 @@ namespace Aggregates.Internal
     public class Repository<T> : IRepository<T> where T : class, IAggregate
     {
         private static readonly ILog Logger = LogManager.GetLogger(typeof(Repository<>));
-        private readonly IStoreEvents _store;
-        private readonly IBuilder _builder;
-
-        private readonly ConcurrentDictionary<String, ISnapshot> _snapshots = new ConcurrentDictionary<String, ISnapshot>();
+        protected readonly IStoreEvents _store;
+        protected readonly IBuilder _builder;
+        
         private readonly ConcurrentDictionary<String, IEventStream> _streams = new ConcurrentDictionary<String, IEventStream>();
         private Boolean _disposed;
 
@@ -45,8 +44,7 @@ namespace Aggregates.Internal
         {
             if (_disposed || !disposing)
                 return;
-
-            _snapshots.Clear();
+            
             _streams.Clear();
 
             _disposed = true;
@@ -57,24 +55,20 @@ namespace Aggregates.Internal
             return Get<TId>(Bucket.Default, id);
         }
 
-        public T Get<TId>(String bucket, TId id)
+        public virtual T Get<TId>(String bucket, TId id)
         {
             Logger.DebugFormat("Retreiving aggregate id '{0}' from bucket '{1}' in store", id, bucket);
+            
+            var stream = OpenStream(bucket, id);
 
-            var snapshot = GetSnapshot(bucket, id);
-            var stream = OpenStream(bucket, id, snapshot);
-
-            if (stream == null && snapshot == null) return (T)null;
+            if (stream == null) return (T)null;
             // Get requires the stream exists
             if (stream.StreamVersion == -1) return (T)null;
 
             // Call the 'private' constructor
             var root = Newup(stream, _builder);
             (root as IEventSource<TId>).Id = id;
-
-            if (snapshot != null && root is ISnapshotting)
-                ((ISnapshotting)root).RestoreSnapshot(snapshot.Payload);
-
+            
             root.Hydrate(stream.Events.Select(e => e.Event));
 
             return root;
@@ -93,8 +87,8 @@ namespace Aggregates.Internal
 
             return root;
         }
-
-        private T Newup(IEventStream stream, IBuilder builder)
+        
+        protected T Newup(IEventStream stream, IBuilder builder)
         {
             // Call the 'private' constructor
             var tCtor = typeof(T).GetConstructor(BindingFlags.NonPublic | BindingFlags.Instance, null, new Type[] { }, null);
@@ -109,6 +103,8 @@ namespace Aggregates.Internal
                 (root as INeedStream).Stream = stream;
             if (root is INeedBuilder)
                 (root as INeedBuilder).Builder = builder;
+            if (root is INeedSnapshots)
+                (root as INeedSnapshots).Snapshots = builder.Build<IPersistSnapshots>();
             if (root is INeedEventFactory)
                 (root as INeedEventFactory).EventFactory = builder.Build<IMessageCreator>();
             if (root is INeedRouteResolver)
@@ -119,33 +115,19 @@ namespace Aggregates.Internal
             return root;
         }
 
-        private ISnapshot GetSnapshot<TId>(String bucket, TId id)
-        {
-            ISnapshot snapshot;
-            var snapshotId = String.Format("{1}-{0}-{2}", typeof(T).FullName, bucket, id);
-            if (!_snapshots.TryGetValue(snapshotId, out snapshot))
-            {
-                _snapshots[snapshotId] = snapshot = _store.GetSnapshot<T>(bucket, id.ToString());
-            }
 
-            return snapshot;
-        }
-
-        private IEventStream OpenStream<TId>(String bucket, TId id, ISnapshot snapshot)
+        protected IEventStream OpenStream<TId>(String bucket, TId id, Int32 version = -1)
         {
             IEventStream stream;
-            var streamId = String.Format("{1}-{0}-{2}", typeof(T).FullName, bucket, id);
+            var streamId = String.Format("{1}-{0}-{2}v{3}", typeof(T).FullName, bucket, id, version);
             if (_streams.TryGetValue(streamId, out stream))
                 return stream;
-
-            if (snapshot == null)
-                _streams[streamId] = stream = _store.GetStream<T>(bucket, id.ToString());
-            else
-                _streams[streamId] = stream = _store.GetStream<T>(bucket, id.ToString(), snapshot.Version + 1);
+            
+            _streams[streamId] = stream = _store.GetStream<T>(bucket, id.ToString(), version + 1);
             return stream;
         }
 
-        private IEventStream PrepareStream<TId>(String bucket, TId id)
+        protected IEventStream PrepareStream<TId>(String bucket, TId id)
         {
             IEventStream stream;
             var streamId = String.Format("{1}-{0}-{2}", typeof(T).FullName, bucket, id);

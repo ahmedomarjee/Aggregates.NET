@@ -36,15 +36,17 @@ namespace Aggregates.Internal
         private static readonly ILog Logger = LogManager.GetLogger(typeof(UnitOfWork));
         private readonly IBuilder _builder;
         private readonly IRepositoryFactory _repoFactory;
+        private readonly IPersistSnapshots _snapshots;
 
         private bool _disposed;
         private IDictionary<String, Object> _workHeaders;
         private IDictionary<Type, IRepository> _repositories;
 
-        public UnitOfWork(IBuilder builder, IRepositoryFactory repoFactory)
+        public UnitOfWork(IBuilder builder, IRepositoryFactory repoFactory, IPersistSnapshots snapshots)
         {
             _builder = builder;
             _repoFactory = repoFactory;
+            _snapshots = snapshots;
             _repositories = new Dictionary<Type, IRepository>();
             _workHeaders = new Dictionary<String, Object>();
         }
@@ -118,19 +120,22 @@ namespace Aggregates.Internal
             if (_workHeaders.TryGetValue(CommitIdHeader, out messageId) && messageId is Guid)
                 commitId = (Guid)messageId;
 
-            foreach (var repo in _repositories)
+            try
             {
-                try
+                // Todo: start storage transaction (Eventstore)
+                foreach (var repo in _repositories)
                 {
                     // Insert all command headers into the commit
                     var headers = new Dictionary<String, Object>(_workHeaders);
 
                     repo.Value.Commit(commitId, headers);
                 }
-                catch (StorageException e)
-                {
-                    throw new PersistenceException(e.Message, e);
-                }
+
+                _snapshots.Commit();
+            }
+            catch (StorageException e)
+            {
+                throw new PersistenceException(e.Message, e);
             }
         }
 
