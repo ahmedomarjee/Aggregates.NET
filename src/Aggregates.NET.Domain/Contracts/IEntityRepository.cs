@@ -13,5 +13,7 @@ namespace Aggregates.Contracts
         T Get<TId>(TId id);
 
         T New<TId>(TId id);
+
+        IEnumerable<T> Query<TMemento>(Func<TMemento, Boolean> predicate) where TMemento : class, IMemento;
     }
 }

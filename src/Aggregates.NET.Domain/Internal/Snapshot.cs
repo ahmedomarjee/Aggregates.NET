@@ -8,8 +8,9 @@ using Aggregates;
 
 namespace Aggregates.Internal
 {
-    public class Snapshot : ISnapshot
+    public class Snapshot<TId> : ISnapshot<TId>
     {
+        public TId Id { get; set; }
         public Int32 Version { get; set; }
         public Object Payload { get; set; }
     }

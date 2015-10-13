@@ -6,8 +6,9 @@ using System.Threading.Tasks;
 
 namespace Aggregates.Contracts
 {
-    public interface ISnapshot
+    public interface ISnapshot<TId>
     {
+        TId Id { get; }
 
         Int32 Version { get; }
 

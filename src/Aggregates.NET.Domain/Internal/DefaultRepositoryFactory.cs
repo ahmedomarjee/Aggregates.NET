@@ -12,13 +12,17 @@ namespace Aggregates.Internal
     {
         public IRepository<T> ForAggregate<T>(IBuilder builder) where T : class, IAggregate
         {
-            var repoType = typeof(Repository<>).MakeGenericType(typeof(T));
+            var idType = typeof(T).GetInterfaces().Single(x => x == typeof(IEventSource<>)).GetGenericArguments().First();
+
+            var repoType = typeof(Repository<,>).MakeGenericType(typeof(T), idType);
             return (IRepository<T>)Activator.CreateInstance(repoType, builder);
         }
 
         public IEntityRepository<TAggregateId, T> ForEntity<TAggregateId, T>(TAggregateId aggregateId, IEventStream aggregateStream, IBuilder builder) where T : class, IEntity
         {
-            var repoType = typeof(EntityRepository<,>).MakeGenericType(typeof(TAggregateId), typeof(T));
+            var idType = typeof(T).GetInterfaces().Single(x => x == typeof(IEventSource<>)).GetGenericArguments().First();
+
+            var repoType = typeof(EntityRepository<,,>).MakeGenericType(typeof(TAggregateId), typeof(T), idType);
             return (IEntityRepository<TAggregateId, T>)Activator.CreateInstance(repoType, aggregateId, aggregateStream, builder);
         }
     }

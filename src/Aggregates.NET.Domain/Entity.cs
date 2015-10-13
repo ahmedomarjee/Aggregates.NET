@@ -63,7 +63,7 @@ namespace Aggregates
             Apply(action);
         }
 
-        protected virtual void Apply<TEvent>(Action<TEvent> action)
+        private void Apply<TEvent>(Action<TEvent> action)
         {
             var @event = _eventFactory.CreateInstance(action);
 
@@ -95,21 +95,26 @@ namespace Aggregates
         }
     }
 
-    public abstract class EntityWithMemento<TId, TAggregateId, TMemento> : Entity<TId, TAggregateId>, ISnapshotting where TMemento : class, IMemento
+    public abstract class EntityWithMemento<TId, TAggregateId, TMemento> : Entity<TId, TAggregateId>, ISnapshotting<TId> where TMemento : class, IMemento
     {
         private IEventStream _eventStream { get { return (this as INeedStream).Stream; } }
 
-        void ISnapshotting.RestoreSnapshot(Object snapshot)
+        void ISnapshotting<TId>.RestoreSnapshot(ISnapshot<TId> snapshot)
         {
-            RestoreSnapshot(snapshot as TMemento);
+            RestoreSnapshot(snapshot.Payload as TMemento);
         }
 
-        Object ISnapshotting.TakeSnapshot()
+        ISnapshot<TId> ISnapshotting<TId>.TakeSnapshot()
         {
-            return TakeSnapshot();
+            return new Internal.Snapshot<TId>
+            {
+                Id = this.Id,
+                Version = this.Version,
+                Payload = TakeSnapshot()
+            };
         }
 
-        Boolean ISnapshotting.ShouldTakeSnapshot()
+        Boolean ISnapshotting<TId>.ShouldTakeSnapshot()
         {
             return ShouldTakeSnapshot();
         }
@@ -119,14 +124,6 @@ namespace Aggregates
         protected abstract TMemento TakeSnapshot();
 
         protected abstract Boolean ShouldTakeSnapshot();
-
-        protected override void Apply<TEvent>(Action<TEvent> action)
-        {
-            base.Apply(action);
-
-            if (this.ShouldTakeSnapshot())
-                _eventStream.AddSnapshot((this as ISnapshotting).TakeSnapshot(), new Dictionary<string, object> { });
-        }
     }
 
     public abstract class Entity<TId> : Entity<TId, TId> { }

@@ -21,5 +21,7 @@ namespace Aggregates.Contracts
         T New<TId>(String bucketId, TId id);
 
         T New<TId>(TId id);
+
+        IEnumerable<T> Query<TMemento>(Func<TMemento, Boolean> predicate) where TMemento : class, IMemento;
     }
 }

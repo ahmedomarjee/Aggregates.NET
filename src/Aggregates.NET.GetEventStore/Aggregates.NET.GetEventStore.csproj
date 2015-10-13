@@ -58,6 +58,7 @@
     <Compile Include="GetEventStore.cs" />
     <Compile Include="EventStream.cs" />
     <Compile Include="EventStore.cs" />
+    <Compile Include="SnapshotStore.cs" />
     <Compile Include="StoreExtensions.cs" />
     <Compile Include="WritableEvent.cs" />
   </ItemGroup>
